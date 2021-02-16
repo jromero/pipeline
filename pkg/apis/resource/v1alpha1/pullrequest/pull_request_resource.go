@@ -56,9 +56,10 @@ type Resource struct {
 
 // NewResource create a new git resource to pass to a Task
 func NewResource(name, prImage string, r *resourcev1alpha1.PipelineResource) (*Resource, error) {
-	if r.Spec.Type != resourcev1alpha1.PipelineResourceTypePullRequest {
+	if r != nil && r.Spec.Type != resourcev1alpha1.PipelineResourceTypePullRequest {
 		return nil, fmt.Errorf("cannot create a PR resource from a %s Pipeline Resource", r.Spec.Type)
 	}
+
 	prResource := Resource{
 		Name:                      name,
 		Type:                      r.Spec.Type,
@@ -67,24 +68,27 @@ func NewResource(name, prImage string, r *resourcev1alpha1.PipelineResource) (*R
 		InsecureSkipTLSVerify:     false,
 		DisableStrictJSONComments: false,
 	}
-	for _, param := range r.Spec.Params {
-		switch {
-		case strings.EqualFold(param.Name, "URL"):
-			prResource.URL = param.Value
-		case strings.EqualFold(param.Name, "Provider"):
-			prResource.Provider = param.Value
-		case strings.EqualFold(param.Name, "insecure-skip-tls-verify"):
-			verify, err := strconv.ParseBool(param.Value)
-			if err != nil {
-				return nil, fmt.Errorf("error occurred converting %q to boolean in Pipeline Resource %s", param.Value, r.Name)
+
+	if r != nil {
+		for _, param := range r.Spec.Params {
+			switch {
+			case strings.EqualFold(param.Name, "URL"):
+				prResource.URL = param.Value
+			case strings.EqualFold(param.Name, "Provider"):
+				prResource.Provider = param.Value
+			case strings.EqualFold(param.Name, "insecure-skip-tls-verify"):
+				verify, err := strconv.ParseBool(param.Value)
+				if err != nil {
+					return nil, fmt.Errorf("error occurred converting %q to boolean in Pipeline Resource %s", param.Value, r.Name)
+				}
+				prResource.InsecureSkipTLSVerify = verify
+			case strings.EqualFold(param.Name, "disable-strict-json-comments"):
+				strict, err := strconv.ParseBool(param.Value)
+				if err != nil {
+					return nil, fmt.Errorf("error occurred converting %q to boolean in Pipeline Resource %s", param.Value, r.Name)
+				}
+				prResource.DisableStrictJSONComments = strict
 			}
-			prResource.InsecureSkipTLSVerify = verify
-		case strings.EqualFold(param.Name, "disable-strict-json-comments"):
-			strict, err := strconv.ParseBool(param.Value)
-			if err != nil {
-				return nil, fmt.Errorf("error occurred converting %q to boolean in Pipeline Resource %s", param.Value, r.Name)
-			}
-			prResource.DisableStrictJSONComments = strict
 		}
 	}
 

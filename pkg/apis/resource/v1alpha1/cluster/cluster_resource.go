@@ -63,62 +63,66 @@ type Resource struct {
 
 // NewResource create a new k8s cluster resource to pass to a pipeline task
 func NewResource(name string, kubeconfigWriterImage, shellImage string, r *resource.PipelineResource) (*Resource, error) {
-	if r.Spec.Type != resource.PipelineResourceTypeCluster {
+	if r != nil && r.Spec.Type != resource.PipelineResourceTypeCluster {
 		return nil, fmt.Errorf("cluster.Resource: Cannot create a Cluster resource from a %s Pipeline Resource", r.Spec.Type)
 	}
-	clusterResource := Resource{
+
+	clusterResource := &Resource{
 		Type:                  r.Spec.Type,
 		KubeconfigWriterImage: kubeconfigWriterImage,
 		ShellImage:            shellImage,
 		Name:                  name,
 	}
-	for _, param := range r.Spec.Params {
-		switch {
-		case strings.EqualFold(param.Name, "URL"):
-			clusterResource.URL = param.Value
-		case strings.EqualFold(param.Name, "Revision"):
-			clusterResource.Revision = param.Value
-		case strings.EqualFold(param.Name, "Username"):
-			clusterResource.Username = param.Value
-		case strings.EqualFold(param.Name, "Namespace"):
-			clusterResource.Namespace = param.Value
-		case strings.EqualFold(param.Name, "Password"):
-			clusterResource.Password = param.Value
-		case strings.EqualFold(param.Name, "Token"):
-			clusterResource.Token = param.Value
-		case strings.EqualFold(param.Name, "Insecure"):
-			b, _ := strconv.ParseBool(param.Value)
-			clusterResource.Insecure = b
-		case strings.EqualFold(param.Name, "CAData"):
-			if param.Value != "" {
-				sDec, _ := b64.StdEncoding.DecodeString(param.Value)
-				clusterResource.CAData = sDec
+
+	if r != nil {
+		for _, param := range r.Spec.Params {
+			switch {
+			case strings.EqualFold(param.Name, "URL"):
+				clusterResource.URL = param.Value
+			case strings.EqualFold(param.Name, "Revision"):
+				clusterResource.Revision = param.Value
+			case strings.EqualFold(param.Name, "Username"):
+				clusterResource.Username = param.Value
+			case strings.EqualFold(param.Name, "Namespace"):
+				clusterResource.Namespace = param.Value
+			case strings.EqualFold(param.Name, "Password"):
+				clusterResource.Password = param.Value
+			case strings.EqualFold(param.Name, "Token"):
+				clusterResource.Token = param.Value
+			case strings.EqualFold(param.Name, "Insecure"):
+				b, _ := strconv.ParseBool(param.Value)
+				clusterResource.Insecure = b
+			case strings.EqualFold(param.Name, "CAData"):
+				if param.Value != "" {
+					sDec, _ := b64.StdEncoding.DecodeString(param.Value)
+					clusterResource.CAData = sDec
+				}
+			case strings.EqualFold(param.Name, "ClientKeyData"):
+				if param.Value != "" {
+					sDec, _ := b64.StdEncoding.DecodeString(param.Value)
+					clusterResource.ClientKeyData = sDec
+				}
+			case strings.EqualFold(param.Name, "ClientCertificateData"):
+				if param.Value != "" {
+					sDec, _ := b64.StdEncoding.DecodeString(param.Value)
+					clusterResource.ClientCertificateData = sDec
+				}
 			}
-		case strings.EqualFold(param.Name, "ClientKeyData"):
-			if param.Value != "" {
-				sDec, _ := b64.StdEncoding.DecodeString(param.Value)
-				clusterResource.ClientKeyData = sDec
-			}
-		case strings.EqualFold(param.Name, "ClientCertificateData"):
-			if param.Value != "" {
-				sDec, _ := b64.StdEncoding.DecodeString(param.Value)
-				clusterResource.ClientCertificateData = sDec
+		}
+		clusterResource.Secrets = r.Spec.SecretParams
+
+		if len(clusterResource.CAData) == 0 {
+			clusterResource.Insecure = true
+			for _, secret := range clusterResource.Secrets {
+				if strings.EqualFold(secret.FieldName, "CAData") {
+					clusterResource.Insecure = false
+					break
+				}
 			}
 		}
 	}
-	clusterResource.Secrets = r.Spec.SecretParams
 
-	if len(clusterResource.CAData) == 0 {
-		clusterResource.Insecure = true
-		for _, secret := range clusterResource.Secrets {
-			if strings.EqualFold(secret.FieldName, "CAData") {
-				clusterResource.Insecure = false
-				break
-			}
-		}
-	}
-
-	return &clusterResource, nil
+	return clusterResource, nil
 }
 
 // GetName returns the name of the resource

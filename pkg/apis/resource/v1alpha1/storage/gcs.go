@@ -54,36 +54,35 @@ type GCSResource struct {
 
 // NewGCSResource creates a new GCS resource to pass to a Task
 func NewGCSResource(name string, images pipeline.Images, r *resourcev1alpha1.PipelineResource) (*GCSResource, error) {
-	if r.Spec.Type != resourcev1alpha1.PipelineResourceTypeStorage {
+	if r != nil && r.Spec.Type != resourcev1alpha1.PipelineResourceTypeStorage {
 		return nil, fmt.Errorf("GCSResource: Cannot create a GCS resource from a %s Pipeline Resource", r.Spec.Type)
 	}
-	var location string
-	var locationSpecified, dir bool
 
-	for _, param := range r.Spec.Params {
-		switch {
-		case strings.EqualFold(param.Name, "Location"):
-			location = param.Value
-			if param.Value != "" {
-				locationSpecified = true
+	gcsr := &GCSResource{
+		Name:        name,
+		Type:        resourcev1alpha1.PipelineResourceTypeStorage,
+		ShellImage:  images.ShellImage,
+		GsutilImage: images.GsutilImage,
+	}
+
+	if r != nil {
+		gcsr.Secrets = r.Spec.SecretParams
+
+		for _, param := range r.Spec.Params {
+			switch {
+			case strings.EqualFold(param.Name, "Location"):
+				gcsr.Location = param.Value
+			case strings.EqualFold(param.Name, "Dir"):
+				gcsr.TypeDir = true // if dir flag is present then its a dir
 			}
-		case strings.EqualFold(param.Name, "Dir"):
-			dir = true // if dir flag is present then its a dir
+		}
+
+		if gcsr.Location == "" {
+			return nil, fmt.Errorf("GCSResource: Need Location to be specified in order to create GCS resource %s", r.Name)
 		}
 	}
 
-	if !locationSpecified {
-		return nil, fmt.Errorf("GCSResource: Need Location to be specified in order to create GCS resource %s", r.Name)
-	}
-	return &GCSResource{
-		Name:        name,
-		Type:        r.Spec.Type,
-		Location:    location,
-		TypeDir:     dir,
-		Secrets:     r.Spec.SecretParams,
-		ShellImage:  images.ShellImage,
-		GsutilImage: images.GsutilImage,
-	}, nil
+	return gcsr, nil
 }
 
 // GetName returns the name of the resource

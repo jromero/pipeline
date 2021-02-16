@@ -54,41 +54,45 @@ type Resource struct {
 
 // NewResource creates a new git resource to pass to a Task
 func NewResource(name, gitImage string, r *resource.PipelineResource) (*Resource, error) {
-	if r.Spec.Type != resource.PipelineResourceTypeGit {
+	if r != nil && r.Spec.Type != resource.PipelineResourceTypeGit {
 		return nil, fmt.Errorf("git.Resource: Cannot create a Git resource from a %s Pipeline Resource", r.Spec.Type)
 	}
-	gitResource := Resource{
+
+	gitResource := &Resource{
 		Name:       name,
-		Type:       r.Spec.Type,
+		Type:       resource.PipelineResourceTypeGit,
 		GitImage:   gitImage,
 		Submodules: true,
 		Depth:      1,
 		SSLVerify:  true,
 	}
-	for _, param := range r.Spec.Params {
-		switch {
-		case strings.EqualFold(param.Name, "URL"):
-			gitResource.URL = param.Value
-		case strings.EqualFold(param.Name, "Revision"):
-			gitResource.Revision = param.Value
-		case strings.EqualFold(param.Name, "Refspec"):
-			gitResource.Refspec = param.Value
-		case strings.EqualFold(param.Name, "Submodules"):
-			gitResource.Submodules = toBool(param.Value, true)
-		case strings.EqualFold(param.Name, "Depth"):
-			gitResource.Depth = toUint(param.Value, 1)
-		case strings.EqualFold(param.Name, "SSLVerify"):
-			gitResource.SSLVerify = toBool(param.Value, true)
-		case strings.EqualFold(param.Name, "HTTPProxy"):
-			gitResource.HTTPProxy = param.Value
-		case strings.EqualFold(param.Name, "HTTPSProxy"):
-			gitResource.HTTPSProxy = param.Value
-		case strings.EqualFold(param.Name, "NOProxy"):
-			gitResource.NOProxy = param.Value
+
+	if r != nil {
+		for _, param := range r.Spec.Params {
+			switch {
+			case strings.EqualFold(param.Name, "URL"):
+				gitResource.URL = param.Value
+			case strings.EqualFold(param.Name, "Revision"):
+				gitResource.Revision = param.Value
+			case strings.EqualFold(param.Name, "Refspec"):
+				gitResource.Refspec = param.Value
+			case strings.EqualFold(param.Name, "Submodules"):
+				gitResource.Submodules = toBool(param.Value, true)
+			case strings.EqualFold(param.Name, "Depth"):
+				gitResource.Depth = toUint(param.Value, 1)
+			case strings.EqualFold(param.Name, "SSLVerify"):
+				gitResource.SSLVerify = toBool(param.Value, true)
+			case strings.EqualFold(param.Name, "HTTPProxy"):
+				gitResource.HTTPProxy = param.Value
+			case strings.EqualFold(param.Name, "HTTPSProxy"):
+				gitResource.HTTPSProxy = param.Value
+			case strings.EqualFold(param.Name, "NOProxy"):
+				gitResource.NOProxy = param.Value
+			}
 		}
 	}
 
-	return &gitResource, nil
+	return gitResource, nil
 }
 
 func toBool(s string, d bool) bool {

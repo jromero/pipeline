@@ -36,20 +36,23 @@ type Resource struct {
 
 // NewResource creates a new ImageResource from a PipelineResourcev1alpha1.
 func NewResource(name string, r *resourcev1alpha1.PipelineResource) (*Resource, error) {
-	if r.Spec.Type != resourcev1alpha1.PipelineResourceTypeImage {
+	if r != nil && r.Spec.Type != resourcev1alpha1.PipelineResourceTypeImage {
 		return nil, fmt.Errorf("ImageResource: Cannot create an Image resource from a %s Pipeline Resource", r.Spec.Type)
 	}
+
 	ir := &Resource{
 		Name: name,
 		Type: resourcev1alpha1.PipelineResourceTypeImage,
 	}
 
-	for _, param := range r.Spec.Params {
-		switch {
-		case strings.EqualFold(param.Name, "URL"):
-			ir.URL = param.Value
-		case strings.EqualFold(param.Name, "Digest"):
-			ir.Digest = param.Value
+	if r != nil {
+		for _, param := range r.Spec.Params {
+			switch {
+			case strings.EqualFold(param.Name, "URL"):
+				ir.URL = param.Value
+			case strings.EqualFold(param.Name, "Digest"):
+				ir.Digest = param.Value
+			}
 		}
 	}
 

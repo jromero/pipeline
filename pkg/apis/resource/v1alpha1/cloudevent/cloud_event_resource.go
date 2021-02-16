@@ -36,29 +36,28 @@ type Resource struct {
 
 // NewResource creates a new CloudEvent resource to pass to a Task
 func NewResource(name string, r *resource.PipelineResource) (*Resource, error) {
-	if r.Spec.Type != resource.PipelineResourceTypeCloudEvent {
+	if r != nil && r.Spec.Type != resource.PipelineResourceTypeCloudEvent {
 		return nil, fmt.Errorf("cloudevent.Resource: Cannot create a Cloud Event resource from a %s Pipeline Resource", r.Spec.Type)
 	}
-	var targetURI string
-	var targetURISpecified bool
 
-	for _, param := range r.Spec.Params {
-		if strings.EqualFold(param.Name, "TargetURI") {
-			targetURI = param.Value
-			if param.Value != "" {
-				targetURISpecified = true
+	cloudEvent := &Resource{
+		Name: name,
+		Type: resource.PipelineResourceTypeCloudEvent,
+	}
+
+	if r != nil {
+		for _, param := range r.Spec.Params {
+			if strings.EqualFold(param.Name, "TargetURI") {
+				cloudEvent.TargetURI = param.Value
 			}
+		}
+
+		if cloudEvent.TargetURI == "" {
+			return nil, fmt.Errorf("cloudevent.Resource: Need URI to be specified in order to create a CloudEvent resource %s", r.Name)
 		}
 	}
 
-	if !targetURISpecified {
-		return nil, fmt.Errorf("cloudevent.Resource: Need URI to be specified in order to create a CloudEvent resource %s", r.Name)
-	}
-	return &Resource{
-		Name:      name,
-		Type:      r.Spec.Type,
-		TargetURI: targetURI,
-	}, nil
+	return cloudEvent, nil
 }
 
 // GetName returns the name of the resource

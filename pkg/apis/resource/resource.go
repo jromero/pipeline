@@ -50,3 +50,23 @@ func FromType(name string, r *resourcev1alpha1.PipelineResource, images pipeline
 	}
 	return nil, fmt.Errorf("%s is an invalid or unimplemented PipelineResource", r.Spec.Type)
 }
+
+// EmptyType creates an implementation of provided type with no properties set. Useful only for accessing functionality
+// currently embedded in the concrete resource types such as replacements.
+func EmptyType(name string, typ resourcev1alpha1.PipelineResourceType, images pipeline.Images) (pipelinev1beta1.PipelineResourceInterface, error) {
+	switch typ {
+	case resourcev1alpha1.PipelineResourceTypeGit:
+		return git.NewResource(name, images.GitImage, nil)
+	case resourcev1alpha1.PipelineResourceTypeImage:
+		return image.NewResource(name, nil)
+	case resourcev1alpha1.PipelineResourceTypeCluster:
+		return cluster.NewResource(name, images.KubeconfigWriterImage, images.ShellImage, nil)
+	case resourcev1alpha1.PipelineResourceTypeStorage:
+		return storage.NewResource(name, images, nil)
+	case resourcev1alpha1.PipelineResourceTypePullRequest:
+		return pullrequest.NewResource(name, images.PRImage, nil)
+	case resourcev1alpha1.PipelineResourceTypeCloudEvent:
+		return cloudevent.NewResource(name, nil)
+	}
+	return nil, fmt.Errorf("%s is an invalid or unimplemented PipelineResource", typ)
+}

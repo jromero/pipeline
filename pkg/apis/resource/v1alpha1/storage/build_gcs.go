@@ -72,40 +72,45 @@ type BuildGCSResource struct {
 
 // NewBuildGCSResource creates a new BuildGCS resource to pass to a Task.
 func NewBuildGCSResource(name string, images pipeline.Images, r *resource.PipelineResource) (*BuildGCSResource, error) {
-	if r.Spec.Type != resource.PipelineResourceTypeStorage {
+	if r != nil && r.Spec.Type != resource.PipelineResourceTypeStorage {
 		return nil, fmt.Errorf("BuildGCSResource: Cannot create a BuildGCS resource from a %s Pipeline Resource", r.Spec.Type)
 	}
-	if r.Spec.SecretParams != nil {
-		return nil, fmt.Errorf("BuildGCSResource: %s cannot support artifacts on private bucket", r.Name)
-	}
-	var location string
-	var aType GCSArtifactType
-	for _, param := range r.Spec.Params {
-		switch {
-		case strings.EqualFold(param.Name, "Location"):
-			location = param.Value
-		case strings.EqualFold(param.Name, "ArtifactType"):
-			var err error
-			aType, err = getArtifactType(param.Value)
-			if err != nil {
-				return nil, fmt.Errorf("BuildGCSResource %s : %w", r.Name, err)
-			}
-		}
-	}
-	if location == "" {
-		return nil, fmt.Errorf("BuildGCSResource: Need Location to be specified in order to create BuildGCS resource %s", r.Name)
-	}
-	if aType == GCSArtifactType("") {
-		return nil, fmt.Errorf("BuildGCSResource: Need ArtifactType to be specified to create BuildGCS resource %s", r.Name)
-	}
-	return &BuildGCSResource{
+
+	gcsr := &BuildGCSResource{
 		Name:                 name,
-		Type:                 r.Spec.Type,
-		Location:             location,
-		ArtifactType:         aType,
+		Type:                 resource.PipelineResourceTypeStorage,
 		ShellImage:           images.ShellImage,
 		BuildGCSFetcherImage: images.BuildGCSFetcherImage,
-	}, nil
+	}
+
+	if r != nil {
+		if r.Spec.SecretParams != nil {
+			return nil, fmt.Errorf("BuildGCSResource: %s cannot support artifacts on private bucket", r.Name)
+		}
+
+		for _, param := range r.Spec.Params {
+			switch {
+			case strings.EqualFold(param.Name, "Location"):
+				gcsr.Location = param.Value
+			case strings.EqualFold(param.Name, "ArtifactType"):
+				var err error
+				gcsr.ArtifactType, err = getArtifactType(param.Value)
+				if err != nil {
+					return nil, fmt.Errorf("BuildGCSResource %s : %w", r.Name, err)
+				}
+			}
+		}
+
+		if gcsr.Location == "" {
+			return nil, fmt.Errorf("BuildGCSResource: Need Location to be specified in order to create BuildGCS resource %s", r.Name)
+		}
+
+		if gcsr.ArtifactType == GCSArtifactType("") {
+			return nil, fmt.Errorf("BuildGCSResource: Need ArtifactType to be specified to create BuildGCS resource %s", r.Name)
+		}
+	}
+
+	return gcsr, nil
 }
 
 // GetName returns the name of the resource.

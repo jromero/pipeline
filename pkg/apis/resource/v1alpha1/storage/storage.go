@@ -37,23 +37,29 @@ type PipelineStorageResourceInterface interface {
 // NewResource returns an instance of the requested storage subtype, which can be used
 // to add input and output steps and volumes to an executing pod.
 func NewResource(name string, images pipeline.Images, r *resource.PipelineResource) (PipelineStorageResourceInterface, error) {
-	if r.Spec.Type != v1beta1.PipelineResourceTypeStorage {
+	if r != nil && r.Spec.Type != v1beta1.PipelineResourceTypeStorage {
 		return nil, fmt.Errorf("StoreResource: Cannot create a storage resource from a %s Pipeline Resource", r.Spec.Type)
 	}
 
-	for _, param := range r.Spec.Params {
-		if strings.EqualFold(param.Name, "type") {
-			switch {
-			case strings.EqualFold(param.Value, resource.PipelineResourceTypeGCS):
-				return NewGCSResource(name, images, r)
-			case strings.EqualFold(param.Value, resource.PipelineResourceTypeBuildGCS):
-				return NewBuildGCSResource(name, images, r)
-			default:
-				return nil, fmt.Errorf("%s is an invalid or unimplemented PipelineStorageResource", param.Value)
+	if r != nil {
+		for _, param := range r.Spec.Params {
+			if strings.EqualFold(param.Name, "type") {
+				switch {
+				case strings.EqualFold(param.Value, resource.PipelineResourceTypeGCS):
+					return NewGCSResource(name, images, r)
+				case strings.EqualFold(param.Value, resource.PipelineResourceTypeBuildGCS):
+					return NewBuildGCSResource(name, images, r)
+				default:
+					return nil, fmt.Errorf("%s is an invalid or unimplemented PipelineStorageResource", param.Value)
+				}
 			}
 		}
+
+		return nil, fmt.Errorf("StoreResource: Cannot create a storage resource without type %s in spec", r.Name)
 	}
-	return nil, fmt.Errorf("StoreResource: Cannot create a storage resource without type %s in spec", r.Name)
+
+	// default to a GCS resource
+	return NewGCSResource(name, images, r)
 }
 
 func getStorageVolumeSpec(s PipelineStorageResourceInterface, spec v1beta1.TaskSpec) []corev1.Volume {

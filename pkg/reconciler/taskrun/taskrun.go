@@ -643,9 +643,27 @@ func (c *Reconciler) createPod(ctx context.Context, tr *v1beta1.TaskRun, rtr *re
 	// Apply context substitution from the taskrun
 	ts = resources.ApplyContexts(ts, rtr, tr)
 
-	// Apply bound resource substitution from the taskrun.
-	ts = resources.ApplyResources(ts, inputResources, "inputs")
-	ts = resources.ApplyResources(ts, outputResources, "outputs")
+	// Apply input bound resource substitution from the taskrun.
+	inputResForReplacement := inputResources
+	if ts.Resources != nil {
+		inputResForReplacement, err = appendDeclaredResources(inputResForReplacement, ts.Resources.Inputs, c.Images)
+		if err != nil {
+			logger.Errorf("Failed to append input resources for replacements: %v", err)
+			return nil, err
+		}
+	}
+	ts = resources.ApplyResources(ts, inputResForReplacement, "inputs")
+
+	// Apply output bound resource substitution from the taskrun.
+	outputResForReplacement := outputResources
+	if ts.Resources != nil {
+		outputResForReplacement, err = appendDeclaredResources(outputResForReplacement, ts.Resources.Outputs, c.Images)
+		if err != nil {
+			logger.Errorf("Failed to append output resources for replacements: %v", err)
+			return nil, err
+		}
+	}
+	ts = resources.ApplyResources(ts, outputResForReplacement, "outputs")
 
 	// Get the randomized volume names assigned to workspace bindings
 	workspaceVolumes := workspace.CreateVolumes(tr.Spec.Workspaces)
@@ -709,6 +727,27 @@ func resourceImplBinding(resources map[string]*resourcev1alpha1.PipelineResource
 		p[rName] = i
 	}
 	return p, nil
+}
+
+// appendDeclaredResources creates and appends empty declared resources to a new map
+func appendDeclaredResources(resources map[string]v1beta1.PipelineResourceInterface, declarations []v1beta1.TaskResource, images pipeline.Images) (map[string]v1beta1.PipelineResourceInterface, error) {
+	new := make(map[string]v1beta1.PipelineResourceInterface)
+	for k, v := range resources {
+		new[k] = v
+	}
+
+	for _, declaration := range declarations {
+		if _, exists := new[declaration.Name]; !exists {
+			r, err := resource.EmptyType(declaration.Name, declaration.Type, images)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create empty resource %s : %v with error: %w", declaration.Name, declaration, err)
+			}
+
+			new[declaration.Name] = r
+		}
+	}
+
+	return new, nil
 }
 
 // updateStoppedSidecarStatus updates SidecarStatus for sidecars that were
